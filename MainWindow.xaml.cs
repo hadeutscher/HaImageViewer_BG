@@ -2,8 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 
 namespace HaImageViewer_BG
 {
@@ -11,11 +13,30 @@ namespace HaImageViewer_BG
     {
         private MainViewModel viewModel;
 
+        [DllImport("uxtheme.dll", SetLastError = true, EntryPoint = "#132")]
+        private static extern int ShouldAppsUseDarkMode();
+
+        [DllImport("dwmapi.dll", PreserveSig = false)]
+        public static extern void DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+        public static bool IsDarkMode { get { return ShouldAppsUseDarkMode() == 1; } }
+
         public MainWindow(string sourcePath, string prefix, List<string> tags, string superTag)
         {
             InitializeComponent();
+            SetTheme();
             viewModel = new MainViewModel(sourcePath, prefix, tags, superTag);
             DataContext = viewModel;
+        }
+
+        private void SetTheme()
+        {
+            var windowHandle = new WindowInteropHelper(this).EnsureHandle();
+
+            int useDarkMode = IsDarkMode ? 1 : 0;
+            DwmSetWindowAttribute(windowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
